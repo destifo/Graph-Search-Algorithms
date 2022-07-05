@@ -1,6 +1,9 @@
+from collections import deque
 import heapq
 from Node import Node
 from Edge import Edge
+from math import radians, cos, sin, asin, sqrt
+
 
 class Graph:
     
@@ -29,7 +32,9 @@ class Graph:
         self.edgesList[key] = edge
 
         fromNode.neighbours[to] = edge
-        toNode.neighbours[From] = Edge(fromNode, toNode, weight)
+        edge2 = Edge(fromNode, toNode, weight)
+        toNode.neighbours[From] = edge2
+        self.edgesList[(to, From)] = edge2
 
     
     def print(self):
@@ -71,25 +76,27 @@ class Graph:
         visited.add(start)
         stack = [] 
         parentOfChild = {} # { child:str -> parent: str} parent: the first node that spanned the child node
-        stack.append(start)
+        stack.append((start, 0))
         while stack:
-            nod = stack.pop()
+            nod, weight = stack.pop()
             for neighbour in self.nodes[nod].neighbours.keys():
+                currEdgeWeight = self.edgesList[(nod, neighbour)].weight
                 if neighbour == end:
                     path = ""
-                    path += (end + ">-")
+                    # path += (end + "->")
+                    path += end
                     curr = nod
                     while curr != start:
-                        path += (curr + ">-")
+                        path = curr + "->" + path
+                        # path += (curr + "->")
                         curr = parentOfChild[curr]
-                    path += curr
-                    print(path[::-1])
-                    return
+                    # path += curr
+                    path = curr + "->" + path
+                    return (currEdgeWeight + weight, path)
                 if neighbour not in visited:
-                    print(neighbour)
                     parentOfChild[neighbour] = nod
                     visited.add(neighbour)
-                    stack.append(neighbour)
+                    stack.append((neighbour, currEdgeWeight + weight))
 
 
     def bfs(self, start: str, end: str):
@@ -99,29 +106,32 @@ class Graph:
 
         visited = set()
         visited.add(start)
-        queue = []
+        queue = deque()
         parentOfChild = {} # { child:str -> parent: str} parent: the first node that spanned the child node
-        queue.append(start)
+        queue.append((start, 0))
         while queue:
             length = len(queue)
             for i in range(length):
-                nod = queue.pop()
+                nod, weight = queue.popleft()
                 for neighbour in self.nodes[nod].neighbours.keys():
+                    currEdgeWeight = self.edgesList[(nod, neighbour)].weight
                     if neighbour == end:
                         path = ""
-                        path += (end + ">-")
+                        # path += (end + "->")
+                        path += end
                         curr = nod
                         while curr != start:
-                            path += (curr + ">-")
+                            path = curr + "->" + path
+                            # path += (curr + "->")
                             curr = parentOfChild[curr]
-                        path += curr
-                        print(path[::-1])
-                        return
+                        # path += curr
+                        path = curr + "->" + path
+                        return (currEdgeWeight + weight, path)
                     if neighbour not in visited:
-                        print(neighbour)
+                        # print(neighbour)
                         parentOfChild[neighbour] = nod
                         visited.add(neighbour)
-                        queue.append(neighbour)
+                        queue.append((neighbour, weight + currEdgeWeight))
 
 
     # returns the shortest path distance if present else -1
@@ -131,20 +141,143 @@ class Graph:
 
         parentOfChild = {}
         while minHeap:
-            nod, weight = heapq.heappop(minHeap)
+            weight, nod = heapq.heappop(minHeap)
+            if nod == end:
+                path = ""
+                # path += (end + "->")
+                path += end
+                curr = parentOfChild[nod]
+                while curr != start:
+                    path = curr + "->" + path
+                    # path += (curr + "->")
+                    curr = parentOfChild[curr]
+                # path += curr
+                path = curr + "->" + path
+                # print(path)
+                # print(weight)
+                return (weight, path)
             visited.add(nod)
             
-            for neighbour in nod.neigbours:
+            for neighbour in self.nodes[nod].neighbours:
                 currEdgeWeight = self.edgesList[(nod, neighbour)].weight
-                if neighbour == end:
-                    return weight + currEdgeWeight
                 if neighbour not in visited:
-                    parentOfChild[neighbour.label] = nod
-                    heapq.heappush(minHeap, (neighbour, currEdgeWeight + weight))
+                    parentOfChild[neighbour] = nod
+                    heapq.heappush(minHeap, (currEdgeWeight + weight, neighbour))
+
+        return (-1, "")
+
+
+    def aStarSearch(self, start:str, end:str, heuristic_data:map):
+        h = {}
+        def populateHeuristicData():
+            for key in heuristic_data.keys():
+                h[key] = calcHeuristic(key, end)
+
+        def calcHeuristic(initial:str, final:str):
+            lon1 = radians(eval(heuristic_data[initial][1]))
+            lon2 = radians(eval(heuristic_data[final][1]))
+            lat1 = radians(eval(heuristic_data[initial][0]))
+            lat2 = radians(eval(heuristic_data[final][0]))
+            
+            # Haversine formula
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+        
+            c = 2 * asin(sqrt(a))
+            r = 6371
+
+            return(c * r)
+
+        visited = set()
+        populateHeuristicData()
+        minHeap = [(0 + h[start], start)]
+        parentOfChild = {}
+        while minHeap:
+            weight, nod = heapq.heappop(minHeap)
+            weight = weight - h[nod]
+            if nod == end:
+                path = ""
+                # path += (end + "->")
+                path += end
+                curr = parentOfChild[nod]
+                while curr != start:
+                    path = curr + "->" + path
+                    # path += (curr + "->")
+                    curr = parentOfChild[curr]
+                # path += curr
+                path = curr + "->" + path
+                # print(path)
+                # print(weight)
+                return (int(weight), path)
+            visited.add(nod)
+            
+            for neighbour in self.nodes[nod].neighbours:
+                currEdgeWeight = self.edgesList[(nod, neighbour)].weight
+                if neighbour not in visited:
+                    parentOfChild[neighbour] = nod
+                    heapq.heappush(minHeap, (currEdgeWeight + weight + h[neighbour], neighbour))
 
         return -1
 
+
+    def evalHeuristic(self, end:str, heuristic_data:map):
+        h = {}
+        def populateHeuristicData():
+            for key in heuristic_data.keys():
+                h[key] = calcHeuristic(key, end)
+
+        def calcHeuristic(initial:str, final:str):
+            lon1 = radians(eval(heuristic_data[initial][1]))
+            lon2 = radians(eval(heuristic_data[final][1]))
+            lat1 = radians(eval(heuristic_data[initial][0]))
+            lat2 = radians(eval(heuristic_data[final][0]))
+            
+            # Haversine formula
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
         
+            c = 2 * asin(sqrt(a))
+            r = 6371
+
+            return(c * r)
+
+        populateHeuristicData()
+        return h
+
+
+    def aStarSearchOuterHeuristic(self, start:str, end:str, h:map):
+        visited = set()
+        minHeap = [(0 + h[start], start)]
+        parentOfChild = {}
+        while minHeap:
+            weight, nod = heapq.heappop(minHeap)
+            weight = weight - h[nod]
+            if nod == end:
+                path = ""
+                # path += (end + "->")
+                path += end
+                curr = parentOfChild[nod]
+                while curr != start:
+                    path = curr + "->" + path
+                    # path += (curr + "->")
+                    curr = parentOfChild[curr]
+                # path += curr
+                path = curr + "->" + path
+                # print(path)
+                # print(weight)
+                return (int(weight), path)
+            visited.add(nod)
+            
+            for neighbour in self.nodes[nod].neighbours:
+                currEdgeWeight = self.edgesList[(nod, neighbour)].weight
+                if neighbour not in visited:
+                    parentOfChild[neighbour] = nod
+                    heapq.heappush(minHeap, (currEdgeWeight + weight + h[neighbour], neighbour))
+
+        return -1
+
     
     def toAdjacentMatrix(self):
         N = len(self.nodes)
@@ -155,9 +288,10 @@ class Graph:
             i +=1
         matrix = [list(range(1 + N * i, 1 + N * (i + 1)))
                             for i in range(N)]
+
         
         for i in range(N):
-            for j in range(i, N):
+            for j in range(i+1, N):
                 label1 = numToNameMap[i]
                 label2 = numToNameMap[j]
                 node1 = self.nodes[label1]
