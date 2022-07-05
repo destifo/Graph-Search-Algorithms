@@ -1,0 +1,22 @@
+1000
+item weight value
+laptop,500,1000
+phone,180,500
+calculator,150,30
+book,100,10
+comb,20,5
+eyeglass,10,100
+ruler,23,3
+filledbottle,300,10
+mirror,190,35
+remote,60,77
+cable,30,15
+paper,17,1
+walkman,220,100
+radio,400,125
+earphone,40,33
+pen,33,8
+pencil,31,7
+socks,50,11
+jacket,275,123
+glove,70,67
